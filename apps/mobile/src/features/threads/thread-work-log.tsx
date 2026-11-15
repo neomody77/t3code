@@ -21,15 +21,12 @@ import { T, useGT, useMessages } from "gt-react-native";
 import { Image } from "expo-image";
 import { type AppSymbolName, SymbolView } from "../../components/ui/AppSymbol";
 import { MaskedView } from "@expo/ui/community/masked-view";
-import type { LegendListRef } from "@legendapp/list/react-native";
-import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { useIsFocused } from "@react-navigation/native";
 import {
   useEffect,
   useId,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   type ComponentProps,
   type ReactNode,
@@ -45,6 +42,13 @@ import {
   View,
 } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import {
+  EdgeFade,
+  ThreadWorkGroupList,
+  WORK_GROUP_MAX_HEIGHT,
+  WORK_GROUP_EDGE_FADE_HEIGHT,
+  workLogRowsHeight,
+} from "./ThreadWorkGroupList";
 import {
   ORCHESTRATION_V2_WORKSPACE_PREPARATION_FAILURE_CODE,
   type EnvironmentId,
@@ -85,10 +89,7 @@ import {
   turnItemOutputText,
 } from "@t3tools/client-runtime/work-log/item-detail";
 import { useTurnItemDetail } from "../../state/queries";
-import {
-  resolveThreadWorkGroupInitialScroll,
-  type ThreadWorkGroupScrollPosition,
-} from "./thread-feed-scroll-position";
+import { type ThreadWorkGroupScrollPosition } from "./thread-feed-scroll-position";
 import {
   resolveWorkEntryToolPresentation,
   toolGroupAction,
@@ -437,19 +438,9 @@ function isFreshRow(createdAt: string): boolean {
 
 // Match min-h-8; disable exact sizing when native accessibility scaling can exceed it.
 const WORK_ROW_HEIGHT = THREAD_WORK_ROW_MIN_HEIGHT;
-const WORK_ROW_GAP = 1;
 const WORK_LOG_BOTTOM_MARGIN = 3.5;
-const WORK_GROUP_MAX_HEIGHT = 256;
-const WORK_GROUP_EDGE_FADE_HEIGHT = 12;
 
 export const WORK_GROUP_TOGGLE_HEIGHT = THREAD_WORK_ROW_MIN_HEIGHT;
-
-function workLogRowsHeight(
-  activities: ReadonlyArray<ThreadFeedActivity>,
-  rowHeight = WORK_ROW_HEIGHT,
-): number {
-  return activities.length * rowHeight + Math.max(0, activities.length - 1) * WORK_ROW_GAP;
-}
 
 export function collapsedWorkLogHeight(
   activities: ReadonlyArray<ThreadFeedActivity>,
@@ -610,173 +601,6 @@ function ThreadReasoningGroup(props: {
       </Animated.View>
     </View>
   );
-}
-
-const WORK_GROUP_MAINTAIN_SCROLL_AT_END = {
-  animated: false,
-  on: { dataAppend: true },
-} as const;
-
-function ThreadWorkGroupList(props: {
-  readonly activities: ReadonlyArray<ThreadFeedActivity>;
-  readonly edgeFadeColor: string;
-  readonly expandedRows: Readonly<Record<string, boolean>>;
-  readonly groupId: string;
-  readonly rowSizing: ReturnType<typeof deriveThreadWorkLogSizing>;
-  readonly scrollPositions: Map<string, ThreadWorkGroupScrollPosition>;
-  readonly renderRow: (row: ThreadFeedActivity) => ReactNode;
-}) {
-  const estimatedRowsHeight = workLogRowsHeight(
-    props.activities,
-    props.rowSizing.estimatedRowHeight,
-  );
-  const savedPosition = props.scrollPositions.get(props.groupId);
-  const initialPosition = props.activities.some((row) => row.id === savedPosition?.rowId)
-    ? savedPosition
-    : undefined;
-  const initialScrollIndex = resolveThreadWorkGroupInitialScroll(props.activities, initialPosition);
-  const listRef = useRef<LegendListRef>(null);
-  const previousTextSize = useRef(props.rowSizing.textSizeKey);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears the list's cached row sizes when the text size changes
-  useLayoutEffect(() => {
-    if (previousTextSize.current === props.rowSizing.textSizeKey) return;
-    previousTextSize.current = props.rowSizing.textSizeKey;
-    listRef.current?.clearCaches({ mode: "sizes" });
-  }, [props.rowSizing.textSizeKey]);
-  const loadedRef = useRef(false);
-  const [contentHeight, setContentHeight] = useState(estimatedRowsHeight);
-  const height = Math.min(contentHeight, WORK_GROUP_MAX_HEIGHT);
-  const scrollOffset = useSharedValue(initialPosition?.scrollOffset ?? 0);
-  const sharedValues = { scrollOffset };
-
-  // Each edge fades only while content continues past it. Scroll offset stays
-  // on the UI thread; only content-size changes update React state.
-  const topFadeStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(1, Math.max(0, scrollOffset.value) / WORK_GROUP_EDGE_FADE_HEIGHT),
-  }));
-  const bottomFadeStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(
-      1,
-      Math.max(0, contentHeight - height - scrollOffset.value) / WORK_GROUP_EDGE_FADE_HEIGHT,
-    ),
-  }));
-  const rememberPosition = (scroll: number) => {
-    if (!loadedRef.current) return;
-    const position = listRef.current?.anchorVisibleContent({ hold: false });
-    if (!position) return;
-    props.scrollPositions.set(props.groupId, {
-      rowId: position.key,
-      offsetWithinRow: position.offset,
-      scrollOffset: scroll,
-    });
-  };
-  const handleMetricsChange = () => {
-    const metrics = listRef.current?.getState();
-    if (!metrics) return;
-    setContentHeight(Math.max(1, metrics.contentLength));
-    rememberPosition(metrics.scroll);
-  };
-  const handleReady = () => {
-    loadedRef.current = true;
-    handleMetricsChange();
-  };
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to LegendList's totalSize state to report content height in the same commit
-  useLayoutEffect(() => {
-    const state = listRef.current?.getState();
-    if (!state) return;
-    handleMetricsChange();
-    const stops = [
-      state.listen("totalSize", handleMetricsChange),
-      state.listen("footerSize", handleMetricsChange),
-      state.listen("headerSize", handleMetricsChange),
-    ];
-    return () => {
-      for (const stop of stops) stop();
-    };
-  }, [handleMetricsChange]);
-  const getFixedItemSize = (row: ThreadFeedActivity, index: number) =>
-    props.expandedRows[row.id] || props.rowSizing.fixedRowHeight === undefined
-      ? undefined
-      : props.rowSizing.fixedRowHeight + (index < props.activities.length - 1 ? WORK_ROW_GAP : 0);
-  const renderItem = ({ item, index }: { item: ThreadFeedActivity; index: number }) => (
-    <View className={index < props.activities.length - 1 ? "pb-px" : undefined}>
-      {props.renderRow(item)}
-    </View>
-  );
-
-  return (
-    <View style={{ height, overflow: "hidden" }}>
-      {/* oxlint-disable-next-line t3code/require-registered-list-scroll -- Nested in a fixed-height card inside the thread feed, which owns the header's scroll view. */}
-      <AnimatedLegendList
-        ref={listRef}
-        data={props.activities}
-        dataKey={props.groupId}
-        keyExtractor={workLogRowKey}
-        estimatedItemSize={props.rowSizing.estimatedRowHeight + WORK_ROW_GAP}
-        getFixedItemSize={getFixedItemSize}
-        initialScrollIndex={initialScrollIndex}
-        recycleItems={false}
-        extraData={props.renderRow}
-        renderItem={renderItem}
-        sharedValues={sharedValues}
-        onReady={handleReady}
-        onScroll={handleMetricsChange}
-        onLayout={handleMetricsChange}
-        maintainScrollAtEnd={WORK_GROUP_MAINTAIN_SCROLL_AT_END}
-        maintainScrollAtEndThreshold={1 / Math.max(1, height)}
-        maintainVisibleContentPosition
-        nestedScrollEnabled
-        directionalLockEnabled
-        showsVerticalScrollIndicator
-        scrollsToTop={false}
-        bounces={false}
-        keyboardShouldPersistTaps="handled"
-        style={{ height }}
-      />
-      <Animated.View
-        pointerEvents="none"
-        className="absolute inset-x-0 top-0"
-        style={[{ height: WORK_GROUP_EDGE_FADE_HEIGHT }, topFadeStyle]}
-      >
-        <EdgeFade color={props.edgeFadeColor} direction="down" />
-      </Animated.View>
-      <Animated.View
-        pointerEvents="none"
-        className="absolute inset-x-0 bottom-0"
-        style={[{ height: WORK_GROUP_EDGE_FADE_HEIGHT }, bottomFadeStyle]}
-      >
-        <EdgeFade color={props.edgeFadeColor} direction="up" />
-      </Animated.View>
-    </View>
-  );
-}
-
-/** A screen-colored gradient painted over the list edge that still has content past it. */
-function EdgeFade(props: { readonly color: string; readonly direction: "up" | "down" }) {
-  const gradientId = `work-group-fade-${useId().replaceAll(":", "")}`;
-  return (
-    <Svg width="100%" height="100%">
-      <Defs>
-        <LinearGradient id={gradientId} x1="0%" x2="0%" y1="0%" y2="100%">
-          <Stop
-            offset={0}
-            stopColor={props.color}
-            stopOpacity={props.direction === "down" ? 1 : 0}
-          />
-          <Stop
-            offset={1}
-            stopColor={props.color}
-            stopOpacity={props.direction === "down" ? 0 : 1}
-          />
-        </LinearGradient>
-      </Defs>
-      <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
-    </Svg>
-  );
-}
-
-function workLogRowKey(row: ThreadFeedActivity): string {
-  return row.id;
 }
 
 function WorkspacePreparationRetryButton(props: {

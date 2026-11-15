@@ -8,6 +8,7 @@ const reactTests = [
   "src/features/threads/LinkedThreadSheet.test.tsx",
   "src/features/threads/ThreadGuestShareSheet.test.tsx",
   "src/features/threads/useSubmitAfterNativeImages.test.tsx",
+  "src/features/threads/ThreadWorkGroupList.test.tsx",
   "src/features/threads/git/GitBranchesSheet.test.tsx",
   "src/features/threads/git/GitConfirmSheet.test.tsx",
   "src/features/threads/new-task-flow-provider.test.tsx",
