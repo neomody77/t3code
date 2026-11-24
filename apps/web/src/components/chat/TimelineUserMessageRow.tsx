@@ -56,7 +56,7 @@ import {
   SNAP_SHOT_ATTACHMENT_FRAME_CLASS,
   SnapShotAttachmentDetails,
 } from "./SnapShotAttachmentDetails";
-import { GuestMessageName, guestBubbleClassName } from "./guestMessageStyle";
+import { GuestMessageName, guestBubbleClassName, guestBubbleStyle } from "./guestMessageStyle";
 import { MessageCopyButton } from "./MessageCopyButton";
 import { promptLinkFor } from "../promptLinks/copyPromptLink";
 import { PierreEntryIcon } from "./PierreEntryIcon";
@@ -948,6 +948,11 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "p-3",
           folded && expanded && "w-full",
         )}
+        style={
+          userMessage.guestName === undefined
+            ? undefined
+            : guestBubbleStyle(userMessage.guestName, false)
+        }
         data-user-message-bubble=""
       >
         {/* Outside the fold so a collapsed message still has a heading to navigate to. */}

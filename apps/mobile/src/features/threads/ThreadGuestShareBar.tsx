@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { guestMessageColor } from "@t3tools/client-runtime/user-message";
 import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
 import {
   type AtomCommandResult,
@@ -162,7 +163,13 @@ export function ThreadGuestPendingMessage(props: {
   return (
     <View className="items-end pb-5">
       <GuestMessageName name={guestName} />
-      <View className={GUEST_PENDING_BUBBLE_CLASS_NAME} style={{ maxWidth: props.bubbleMaxWidth }}>
+      <View
+        className={GUEST_PENDING_BUBBLE_CLASS_NAME}
+        style={{
+          maxWidth: props.bubbleMaxWidth,
+          borderColor: `${guestMessageColor(guestName).accent}80`,
+        }}
+      >
         {message.text ? (
           <Text selectable className="text-base text-foreground">
             {message.text}

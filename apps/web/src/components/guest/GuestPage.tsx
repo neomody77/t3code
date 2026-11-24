@@ -40,7 +40,11 @@ import type { ExpandedImagePreview } from "../chat/ExpandedImagePreview";
 import { GuestMessageAttachments } from "../chat/GuestMessageAttachments";
 import { HostImageUrlContext } from "../chat/hostImageUrl";
 import { PierreEntryIcon } from "../chat/PierreEntryIcon";
-import { GuestMessageName, guestBubbleClassName } from "../chat/guestMessageStyle";
+import {
+  GuestMessageName,
+  guestBubbleClassName,
+  guestBubbleStyle,
+} from "../chat/guestMessageStyle";
 import type { MessagesTimelineHistoryControls } from "../chat/MessagesTimeline";
 import { ReadOnlyThreadTimeline } from "../chat/ReadOnlyThreadTimeline";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
@@ -514,6 +518,7 @@ function UnplacedGuestMessage({
           guestBubbleClassName(message.status !== "sent"),
           message.status === "dismissed" ? "text-muted-foreground" : "text-message-foreground",
         )}
+        style={guestBubbleStyle(guestName, message.status !== "sent")}
       >
         <GuestMessageAttachments
           attachments={message.attachments ?? []}

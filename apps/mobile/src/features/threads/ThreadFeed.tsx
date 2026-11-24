@@ -2453,7 +2453,9 @@ function renderFeedEntry(
                       : null),
               }}
             >
-              {presentation.attribution === "guest" ? <GuestBubbleTint /> : null}
+              {presentation.attribution === "guest" ? (
+                <GuestBubbleTint name={presentation.guestName ?? "Guest"} />
+              ) : null}
               {foldRowId !== null ? (
                 <AgentMessageFoldHeader
                   environmentId={senderRef?.environmentId ?? props.environmentId}

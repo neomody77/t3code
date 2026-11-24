@@ -39,7 +39,7 @@ import { useAssetUrls } from "~/assets/assetUrls";
 import { type ChatFileAttachment, isImageAttachment } from "../../types";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./ExpandedImagePreview";
 import { GuestMessageAttachments } from "./GuestMessageAttachments";
-import { GuestMessageName, guestBubbleClassName } from "./guestMessageStyle";
+import { GuestMessageName, guestBubbleClassName, guestBubbleStyle } from "./guestMessageStyle";
 import { guestShareDialogThreadAtom } from "./guestShareDialogState";
 
 function useThreadGuestShare(threadRef: ScopedThreadRef | null): ThreadGuestShare | null {
@@ -305,6 +305,7 @@ export function GuestPendingMessages({
                 "flex min-w-0 max-w-[80%] flex-col gap-2 rounded-2xl p-3 text-foreground",
                 guestBubbleClassName(true),
               )}
+              style={guestBubbleStyle(guestName, true)}
             >
               <GuestMessageAttachments
                 attachments={message.attachments ?? []}

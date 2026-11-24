@@ -33,6 +33,26 @@ export const IDLE_COMPACTION_TITLES = {
 const LEGACY_AUTOMATION_PREFIX = /^\[Triggered by schedule task: [^\r\n]+\]\r?\n\r?\n/;
 const LEGACY_AUTOMATION_MESSAGE_ID = /^scheduled-task-message:(.+):\d+:(?:scheduled|manual)$/;
 
+const GUEST_MESSAGE_COLORS = [
+  { accent: "#ef4444", light: "#b91c1c", dark: "#fca5a5" },
+  { accent: "#f97316", light: "#c2410c", dark: "#fdba74" },
+  { accent: "#22c55e", light: "#15803d", dark: "#86efac" },
+  { accent: "#14b8a6", light: "#0f766e", dark: "#5eead4" },
+  { accent: "#0ea5e9", light: "#0369a1", dark: "#7dd3fc" },
+  { accent: "#6366f1", light: "#4338ca", dark: "#a5b4fc" },
+  { accent: "#8b5cf6", light: "#6d28d9", dark: "#c4b5fd" },
+  { accent: "#d946ef", light: "#a21caf", dark: "#f0abfc" },
+] as const;
+
+/** A guest keeps their color across clients and message approval, without storing UI state. */
+export function guestMessageColor(name: string) {
+  let hash = 2166136261;
+  for (const character of name.trim().normalize("NFC")) {
+    hash = Math.imul(hash ^ character.codePointAt(0)!, 16777619);
+  }
+  return GUEST_MESSAGE_COLORS[(hash >>> 0) % GUEST_MESSAGE_COLORS.length]!;
+}
+
 export function resolveUserMessageFileCards(message: {
   readonly text: string;
   readonly attachments: ReadonlyArray<ChatAttachment>;

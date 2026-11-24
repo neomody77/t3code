@@ -47,7 +47,7 @@ import { toastManager } from "../ui/toast";
 import { m } from "../../i18n/messages";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
-import { GuestMessageName } from "./guestMessageStyle";
+import { GuestMessageName, guestBubbleStyle } from "./guestMessageStyle";
 import { TimelineRowTimestamp } from "./TimelineRowParts";
 import { FoldedMessageHeader, useScheduledTaskTitle } from "./TimelineUserMessageRow";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./ExpandedImagePreview";
@@ -536,6 +536,11 @@ function QueuedMessage(props: {
           fold === null && "px-3 py-2",
           fold !== null && expanded && "w-full",
         )}
+        style={
+          !props.isEditing && presentation?.guestName !== undefined
+            ? guestBubbleStyle(presentation.guestName, true)
+            : undefined
+        }
       >
         {fold ? (
           <FoldedMessageHeader
