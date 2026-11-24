@@ -11,7 +11,7 @@ import {
 } from "./baseSchemas.ts";
 
 /**
- * A guest share lets one unauthenticated browser watch a thread over HTTPS and propose
+ * A guest share lets unauthenticated browsers watch a thread over HTTPS and propose
  * messages the owner must send or dismiss. The thread projection holds this public state; the
  * credentials are derived from the share id with a server key and never stored.
  */
@@ -27,11 +27,23 @@ export const GUEST_MESSAGE_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 /** Total size of the files in a share's waiting messages, so a guest cannot fill the disk. */
 export const GUEST_PENDING_ATTACHMENT_BYTES_LIMIT = 20 * 1024 * 1024;
 
+// Names reach the agent's attribution line and the owner's UI, so keep them on one plain line.
+const NAME_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
+
+export const GuestName = TrimmedNonEmptyString.check(
+  Schema.isMaxLength(GUEST_NAME_MAX_LENGTH),
+  Schema.makeFilter((name) => !NAME_BREAKING_CHARACTER.test(name), {
+    description: "a single line of text",
+  }),
+);
+
 export const ThreadGuestMessageStatus = Schema.Literals(["pending", "sent", "dismissed"]);
 export type ThreadGuestMessageStatus = typeof ThreadGuestMessageStatus.Type;
 
 export const ThreadGuestMessage = Schema.Struct({
   id: GuestMessageId,
+  /** Bound to the sending browser's signed session. Absent on older messages. */
+  guestName: Schema.optional(GuestName),
   text: Schema.String,
   status: ThreadGuestMessageStatus,
   submittedAt: IsoDateTime,
@@ -46,7 +58,7 @@ export const ThreadGuestShare = Schema.Struct({
   host: TrimmedNonEmptyString,
   createdAt: IsoDateTime,
   expiresAt: IsoDateTime,
-  /** Set once, when the guest redeems the link. */
+  /** First guest to join; also the attribution for sessions and messages issued by older servers. */
   guestName: Schema.NullOr(TrimmedNonEmptyString),
   messages: Schema.Array(ThreadGuestMessage),
 });
@@ -90,18 +102,9 @@ export class GuestShareCreateError extends Schema.TaggedError<GuestShareCreateEr
   }
 }
 
-// The name lands in the agent's attribution line, so it must stay one plain line, and the owner
-// reads it, so direction overrides cannot make it look like another name.
-const NAME_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
-
 export const GuestRedeemRequest = Schema.Struct({
   credential: TrimmedNonEmptyString,
-  name: TrimmedNonEmptyString.check(
-    Schema.isMaxLength(GUEST_NAME_MAX_LENGTH),
-    Schema.makeFilter((name) => !NAME_BREAKING_CHARACTER.test(name), {
-      description: "a single line of text",
-    }),
-  ),
+  name: GuestName,
 });
 export type GuestRedeemRequest = typeof GuestRedeemRequest.Type;
 

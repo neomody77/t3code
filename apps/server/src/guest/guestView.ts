@@ -24,13 +24,14 @@ export function guestThreadModel(
 export function guestShareView(
   thread: OrchestrationV2AppThread,
   model: GuestThreadModel,
+  guestName?: string | null,
 ): GuestShareView | null {
   const share = thread.guestShare;
   if (!share || share.guestName === null) return null;
   return {
     shareId: share.id,
     title: thread.title,
-    guestName: share.guestName,
+    guestName: guestName ?? share.guestName,
     expiresAt: share.expiresAt,
     messages: share.messages,
     model,

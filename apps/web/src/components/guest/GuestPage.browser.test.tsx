@@ -221,15 +221,34 @@ describe("GuestPage", () => {
     using _session = vi
       .spyOn(window, "fetch")
       .mockImplementation(async () => new Response(null, { status: 204 }));
+    const events = opening([run("run-1", 1, "completed")], items);
+    const guests = ["Sam", "Eve"].map((guestName) => ({
+      id: GuestMessageId.make(`pending-${guestName}`),
+      guestName,
+      text: `Question from ${guestName}`,
+      status: "pending" as const,
+      submittedAt: DateTime.formatIso(finished),
+    }));
     using _stream = vi
       .spyOn(window, "EventSource")
-      .mockImplementation(fakeEventSource(opening([run("run-1", 1, "completed")], items)) as never);
+      .mockImplementation(
+        fakeEventSource([
+          { type: "view", view: { ...view, messages: guests } },
+          ...events.slice(1),
+        ]) as never,
+      );
     using socket = vi.spyOn(window, "WebSocket");
     const container = document.createElement("div");
     container.style.cssText = "height: 900px; width: 900px; display: flex; flex-direction: column;";
     await using screen = await render(<GuestPage />, { container });
 
     await expect.element(screen.getByText("All checks pass.")).toBeVisible();
+    for (const guest of guests) {
+      await expect
+        .element(screen.getByText(`${guest.guestName} (guest)`, { exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByText(guest.text)).toBeVisible();
+    }
     // A finished turn folds its work, as it does for the owner; the command is inside.
     await userEvent.click(screen.getByRole("button", { name: /Worked for/ }));
     await expect.element(screen.getByText("vp run check:changed")).toBeVisible();

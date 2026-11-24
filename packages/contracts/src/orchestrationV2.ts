@@ -49,7 +49,7 @@ import {
 } from "./baseSchemas.ts";
 import { AuthMcpClientAccess } from "./auth.ts";
 import { ChatAttachment } from "./chatAttachment.ts";
-import { ThreadGuestShare } from "./guestShare.ts";
+import { GuestName, ThreadGuestShare } from "./guestShare.ts";
 import { StoredThreadTags, ThreadTag } from "./threadTags.ts";
 import { ThreadTitleRegenerationOutcome } from "./threadTitle.ts";
 import {
@@ -3841,7 +3841,7 @@ const OrchestrationV2InternalCommand = Schema.Union([
     runId: RunId,
     value: Schema.Json,
   }),
-  // Guest share commands the server issues after checking T3 Connect and the guest token.
+  // Guest share commands the server issues after checking the public endpoint and guest token.
   Schema.Struct({
     type: Schema.Literal("thread.guest-share.open"),
     commandId: CommandId,
@@ -3863,6 +3863,7 @@ const OrchestrationV2InternalCommand = Schema.Union([
     threadId: ThreadId,
     shareId: GuestShareId,
     guestMessageId: GuestMessageId,
+    guestName: Schema.optional(GuestName),
     text: Schema.String,
     attachments: Schema.optional(Schema.Array(ChatAttachment)),
   }),

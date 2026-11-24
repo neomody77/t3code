@@ -130,7 +130,7 @@ export function ThreadGuestShareSheet({ route }: StaticScreenProps<GuestShareTar
     (thread === null ||
       DateTime.toEpochMillis(thread.projection.thread.updatedAt) <
         Date.parse(state.share.createdAt) ||
-      (activeShare?.id === state.share.id && activeShare.guestName === null))
+      activeShare?.id === state.share.id)
       ? state
       : null;
 
@@ -151,7 +151,7 @@ export function ThreadGuestShareSheet({ route }: StaticScreenProps<GuestShareTar
               </Text>
             </View>
             <Text className="px-1 text-xs text-foreground-muted">
-              <T>Send it to one person. It works once and expires in 24 hours.</T>
+              {gt("The link can be used by multiple guests and expires in 24 hours.")}
             </Text>
           </View>
           <View className="flex-row gap-3">
@@ -200,15 +200,11 @@ export function ThreadGuestShareSheet({ route }: StaticScreenProps<GuestShareTar
               </Text>
             ) : activeShare !== null ? (
               <Text className="text-sm text-foreground">
-                {activeShare.guestName !== null
-                  ? gt("{name} is a guest. A new link ends their access.", {
-                      name: activeShare.guestName,
-                    })
-                  : gt("A guest link is active. A new link ends the current one.")}
+                {gt("A guest link is active. A new link ends the current one.")}
               </Text>
             ) : (
               <Text className="text-sm text-foreground">
-                <T>The link works once and expires in 24 hours.</T>
+                {gt("The link can be used by multiple guests and expires in 24 hours.")}
               </Text>
             )}
             {hasPendingMessages ? (

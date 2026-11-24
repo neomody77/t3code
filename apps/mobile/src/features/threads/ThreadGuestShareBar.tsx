@@ -89,7 +89,7 @@ export function ThreadGuestShareBar(props: {
   const stopSharing = () =>
     Dialog.confirm({
       title: gt("Stop sharing?"),
-      message: gt("The guest loses access and the link stops working."),
+      message: gt("All guests lose access and the link stops working."),
       confirmText: gt("Stop sharing"),
       destructive: true,
       onConfirm: () => {
@@ -109,11 +109,7 @@ export function ThreadGuestShareBar(props: {
     <View className="flex-row items-center gap-2 px-4 pb-2">
       <SymbolView name="person.2" size={12} tintColorClassName="accent-foreground-muted" />
       <Text className="min-w-0 flex-1 text-xs text-foreground-muted" numberOfLines={1}>
-        {expiredAt === share.expiresAt
-          ? gt("Guest link expired")
-          : share.guestName === null
-            ? gt("Guest link active")
-            : gt("{guestName} is a guest", { guestName: share.guestName })}
+        {expiredAt === share.expiresAt ? gt("Guest link expired") : gt("Guest link active")}
       </Text>
       <Button label={gt("Stop sharing")} tone="text" disabled={disabled} onPress={stopSharing} />
     </View>

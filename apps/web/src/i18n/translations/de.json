@@ -3650,11 +3650,9 @@
   "0c7f0973f205c143": "Gastlink",
   "d26395a743d1d094": "Kopieren",
   "f1ad2149da98d87b": "Ein neuer Link beendet den aktuellen.",
-  "16e29e57dc2931ee": "Der Link funktioniert einmal und läuft in 24 Stunden ab.",
   "4b397764b5592274": "Wird erstellt...",
   "adb486dabb4bfe2c": "Link erstellen",
-  "841768cdf6a3e423": "{guestName} ist Gast",
-  "44edab03bdd834b0": "Gastlink aktiv",
+  "44edab03bdd834b0": "Guest link active",
   "af2057b5701fe49e": "Gast",
   "50ddfa242f74c4b1": "{count, plural, one {{count} Gastnachricht wartet} other {{count} Gastnachrichten warten}}",
   "ed5eb75060e6513f": "Nachricht von {guestName} verwerfen",
@@ -5865,11 +5863,9 @@
   "04dfdd46e3dd4a2e": "Etwas ist schiefgelaufen. Versuche es erneut.",
   "084bb2d8127a508d": "Gesendet",
   "77c01a15bd36d17c": "Dieser Link ist abgelaufen oder ungültig",
-  "e0e736810f3cbef2": "Bitte den Besitzer um einen neuen Link. Jeder Link funktioniert in einem Browser.",
   "c3c53aa46f7330e5": "Dieser Link ist abgelaufen",
   "4a5ce89cc389c0cb": "Der Besitzer hat die Freigabe dieses Threads beendet.",
   "72fcd24abd213e79": "Dein Name",
-  "deba6c55f3fa2585": "Du",
   "f3bf76280efcb4b3": "Modell: {model}",
   "3ce15b040d294453": "Angehängte Dateien",
   "cf29899e4ec70df7": "Nachricht",
@@ -12796,5 +12792,7 @@
     ")"
   ],
   "33d18dda74f6d7b3": "Auto-Merge für Stack abbrechen",
-  "012c67c7f1a99e33": "Auto-Merge für Stack"
+  "012c67c7f1a99e33": "Auto-Merge für Stack",
+  "4cd044d2cc1e71dd": "Der Link kann von mehreren Gästen verwendet werden und läuft nach 24 Stunden ab.",
+  "170024092befb7c0": "Bitte den Besitzer um einen neuen Link."
 }

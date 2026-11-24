@@ -4,6 +4,7 @@ import {
   CommandId,
   GUEST_SHARE_TTL_MS,
   GuestMessageId,
+  GuestName,
   GuestShareCreateError,
   type GuestShareCreateInput,
   type GuestShareCreateResult,
@@ -132,6 +133,7 @@ const SessionClaims = Schema.Struct({
   kind: Schema.Literal("session"),
   threadId: ThreadId,
   shareId: GuestShareId,
+  guestName: Schema.optional(GuestName),
 });
 type SessionClaims = typeof SessionClaims.Type;
 const decodeSessionClaims = Schema.decodeUnknownOption(Schema.fromJsonString(SessionClaims));
@@ -144,7 +146,7 @@ export class GuestShareService extends Context.Service<
     readonly create: (
       input: GuestShareCreateInput,
     ) => Effect.Effect<GuestShareCreateResult, GuestShareCreateError>;
-    /** Spends an invite and returns the session token for the guest's cookie. */
+    /** Joins an invite and returns a signed name in the session token for this browser's cookie. */
     readonly redeem: (
       request: GuestRedeemRequest,
     ) => Effect.Effect<
@@ -346,7 +348,7 @@ const make = Effect.gen(function* () {
     ) {
       return yield* inactive;
     }
-    return { thread, share };
+    return { thread, share, guestName: claims.value.guestName ?? share.guestName };
   });
 
   const create = Effect.fn("GuestShareService.create")(function* (input: GuestShareCreateInput) {
@@ -391,7 +393,12 @@ const make = Effect.gen(function* () {
     });
     // Guests have no client connection, so their events carry no surface.
     yield* analytics.record("feature.used", { feature: "guest_share.join" });
-    const token = yield* signSession({ kind: "session", threadId: thread.id, shareId: share.id });
+    const token = yield* signSession({
+      kind: "session",
+      threadId: thread.id,
+      shareId: share.id,
+      guestName: request.name,
+    });
     return { token, shareId: share.id };
   });
 
@@ -470,7 +477,7 @@ const make = Effect.gen(function* () {
     request: GuestSubmitRequest,
     uploads: ReadonlyArray<GuestUpload>,
   ) {
-    const { thread, share } = yield* authorize(session, "session");
+    const { thread, share, guestName } = yield* authorize(session, "session");
     if (request.shareId !== share.id) {
       return yield* new GuestShareAccessError({ reason: "stale_page" });
     }
@@ -484,6 +491,7 @@ const make = Effect.gen(function* () {
       threadId: thread.id,
       shareId: share.id,
       guestMessageId: GuestMessageId.make(yield* random.uuidV4()),
+      ...(guestName === null ? {} : { guestName }),
       text: request.text,
       ...(attachments.length === 0 ? {} : { attachments }),
     }).pipe(Effect.onError(() => removeStored(attachments)));
@@ -539,7 +547,7 @@ const make = Effect.gen(function* () {
    * wire events, batched the same way. Only the share's own state is added.
    */
   const stream = Effect.fn("GuestShareService.stream")(function* (session: string) {
-    const { thread, share } = yield* authorize(session, "session");
+    const { thread, share, guestName } = yield* authorize(session, "session");
     const snapshot = yield* orchestrator
       .getThreadSnapshotWindow(thread.id, {
         rowLimit: SNAPSHOT_ROW_LIMIT,
@@ -557,7 +565,7 @@ const make = Effect.gen(function* () {
     // Read once; a provider configured mid-share shows after the guest reconnects.
     const providers = yield* providerRegistry.getProviders;
     const viewOf = (current: OrchestrationV2AppThread) =>
-      guestShareView(current, guestThreadModel(current.modelSelection, providers));
+      guestShareView(current, guestThreadModel(current.modelSelection, providers), guestName);
     const initialView = viewOf(snapshot.projection.thread);
     if (initialView === null) return yield* inactive;
 

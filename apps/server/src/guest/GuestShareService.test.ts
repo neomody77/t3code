@@ -39,6 +39,7 @@ import {
 } from "../attachmentStore.ts";
 import { resolveAttachmentRelativePath } from "../attachmentPaths.ts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
+import * as PayloadSigner from "../auth/PayloadSigner.ts";
 import { CloudManagedEndpointRuntime } from "../cloud/ManagedEndpointRuntime.ts";
 import * as ServerConfig from "../config.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
@@ -152,7 +153,7 @@ const layerTestWithConfig = (config = layerConfig) =>
     Layer.provideMerge(ServerSettings.layerTest({ guestSharingEnabled: true })),
     Layer.provide(layerConnect),
     Layer.provideMerge(layerAnalytics),
-    Layer.provide(ServerSecretStore.layer),
+    Layer.provideMerge(ServerSecretStore.layer),
     Layer.provide(DocumentText.layer),
     Layer.provideMerge(config),
     Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
@@ -210,7 +211,7 @@ it.effect(
       );
       const { token: session, shareId } = yield* guestShares.redeem({ credential, name: "Sam" });
       assert.isTrue(
-        Exit.isFailure(yield* Effect.exit(guestShares.redeem({ credential, name: "Eve" }))),
+        Exit.isSuccess(yield* Effect.exit(guestShares.redeem({ credential, name: "Eve" }))),
       );
       yield* guestShares.submit(session, { shareId, text: "Please review" }, []);
       const thread = (yield* orchestrator.getThreadRecords(threadId, [])).thread;
@@ -281,18 +282,61 @@ it.effect("expires self-hosted guest streams without a Connect tunnel", () =>
   }).pipe(Effect.provide(layerSelfHosted)),
 );
 
-it.effect("spends an invite once and ends the guest stream when the owner stops sharing", () =>
+it.effect("admits multiple guests and ends every guest stream when the owner stops sharing", () =>
   Effect.gen(function* () {
     const { orchestrator, guestShares, credential } = yield* shareThread;
     const { token: session } = yield* guestShares.redeem({ credential, name: "Sam" });
-    const again = yield* Effect.exit(guestShares.redeem({ credential, name: "Eve" }));
-    assert.isTrue(Exit.isFailure(again));
-    // The browser that joined can come back without the spent invite.
+    const { token: otherSession, shareId } = yield* guestShares.redeem({
+      credential,
+      name: "Eve",
+    });
+    assert.notEqual(session, otherSession);
+    const signer = yield* PayloadSigner.make("guest-share-signing-key");
+    const legacyPayload = Buffer.from(
+      JSON.stringify({ kind: "session", threadId, shareId }),
+    ).toString("base64url");
+    const legacySession = `${legacyPayload}.${yield* signer.sign(legacyPayload)}`;
+    // Each browser can come back without the invite.
     assert.isTrue(Exit.isSuccess(yield* Effect.exit(guestShares.check(session))));
+    assert.isTrue(Exit.isSuccess(yield* Effect.exit(guestShares.check(otherSession))));
+    yield* guestShares.check(legacySession);
     // An invite token is not a session token.
     assert.isTrue(Exit.isFailure(yield* Effect.exit(guestShares.stream(credential))));
 
+    yield* Effect.all(
+      [
+        guestShares.submit(session, { shareId, text: "Hello from Sam" }, []),
+        guestShares.submit(otherSession, { shareId, text: "Hello from Eve" }, []),
+      ],
+      { concurrency: "unbounded" },
+    );
+    const { thread } = yield* orchestrator.getThreadRecords(threadId, []);
+    assert.deepEqual(
+      thread.guestShare?.messages.map((message) => [message.guestName, message.text]).sort(),
+      [
+        ["Eve", "Hello from Eve"],
+        ["Sam", "Hello from Sam"],
+      ],
+    );
+    yield* guestShares.submit(legacySession, { shareId, text: "An older browser" }, []);
+    assert.equal(
+      (yield* orchestrator.getThreadRecords(threadId, [])).thread.guestShare?.messages.at(-1)
+        ?.guestName,
+      "Sam",
+    );
+    assert.equal(
+      (yield* Effect.flip(guestShares.submit(otherSession, { shareId, text: "Fourth" }, [])))
+        .reason,
+      "busy",
+    );
+    // Changing a name inside a session invalidates its signature.
+    const [payload, signature] = otherSession.split(".");
+    const claims = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8"));
+    const tampered = `${Buffer.from(JSON.stringify({ ...claims, guestName: "Sam" })).toString("base64url")}.${signature}`;
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(guestShares.check(tampered))));
+
     const events = yield* guestShares.stream(session);
+    const otherEvents = yield* guestShares.stream(otherSession);
     yield* orchestrator.dispatch({
       type: "thread.guest-share.close",
       commandId: CommandId.make("close-guest-share"),
@@ -303,8 +347,16 @@ it.effect("spends an invite once and ends the guest stream when the owner stops 
       received.map((event) => (event.type === "thread" ? event.item.kind : event.type)),
       ["view", "snapshot", "ended"],
     );
+    const otherReceived = Array.from(yield* Stream.runCollect(otherEvents));
+    assert.equal(received[0]?.type === "view" && received[0].view.guestName, "Sam");
+    assert.equal(otherReceived[0]?.type === "view" && otherReceived[0].view.guestName, "Eve");
+    assert.equal(otherReceived.at(-1)?.type, "ended");
     assert.isTrue(Exit.isFailure(yield* Effect.exit(guestShares.stream(session))));
     assert.isTrue(Exit.isFailure(yield* Effect.exit(guestShares.check(session))));
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(guestShares.check(otherSession))));
+    assert.isTrue(
+      Exit.isFailure(yield* Effect.exit(guestShares.redeem({ credential, name: "Late guest" }))),
+    );
   }).pipe(Effect.provide(layerTest)),
 );
 

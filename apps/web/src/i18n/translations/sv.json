@@ -3649,11 +3649,9 @@
   "0c7f0973f205c143": "Gästlänk",
   "d26395a743d1d094": "Kopiera",
   "f1ad2149da98d87b": "En ny länk avslutar den nuvarande.",
-  "16e29e57dc2931ee": "Länken fungerar en gång och går ut om 24 timmar.",
   "4b397764b5592274": "Skapar...",
   "adb486dabb4bfe2c": "Skapa länk",
-  "841768cdf6a3e423": "{guestName} är gäst",
-  "44edab03bdd834b0": "Gästlänken är aktiv",
+  "44edab03bdd834b0": "Guest link active",
   "af2057b5701fe49e": "Gäst",
   "50ddfa242f74c4b1": "{count, plural, one {{count} gästmeddelande väntar} other {{count} gästmeddelanden väntar}}",
   "ed5eb75060e6513f": "Avvisa meddelande från {guestName}",
@@ -5865,11 +5863,9 @@
   "04dfdd46e3dd4a2e": "Något gick fel. Försök igen.",
   "084bb2d8127a508d": "Skickat",
   "77c01a15bd36d17c": "Den här länken har upphört eller är ogiltig",
-  "e0e736810f3cbef2": "Be ägaren om en ny länk. Varje länk fungerar i en webbläsare.",
   "c3c53aa46f7330e5": "Den här länken har upphört",
   "4a5ce89cc389c0cb": "Ägaren har slutat dela den här tråden.",
   "72fcd24abd213e79": "Ditt namn",
-  "deba6c55f3fa2585": "Du",
   "f3bf76280efcb4b3": "Modell: {model}",
   "3ce15b040d294453": "Bifogade filer",
   "cf29899e4ec70df7": "Meddelande",
@@ -12803,5 +12799,7 @@
     ")"
   ],
   "33d18dda74f6d7b3": "Avbryt automatisk merge för stacken",
-  "012c67c7f1a99e33": "Merga stacken automatiskt"
+  "012c67c7f1a99e33": "Merga stacken automatiskt",
+  "4cd044d2cc1e71dd": "Länken kan användas av flera gäster och upphör att gälla efter 24 timmar.",
+  "170024092befb7c0": "Be ägaren om en ny länk."
 }

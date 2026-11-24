@@ -88,20 +88,21 @@ const sendGuestMessage = (orchestrator: Orchestrator.OrchestratorV2["Service"], 
     creationSource: "web",
   });
 
-it.effect("redeems a guest link once and sends each guest message once, with its turn", () =>
+it.effect("keeps a guest link reusable and sends each guest message once, with its turn", () =>
   Effect.gen(function* () {
     const orchestrator = yield* setup;
     const projections = yield* ProjectionStore.ProjectionStoreV2;
-    const redeem = (id: string) =>
+    const redeem = (id: string, guestName: string) =>
       orchestrator.dispatch({
         type: "thread.guest-share.redeem",
         commandId: CommandId.make(id),
         threadId,
         shareId,
-        guestName: "Sam",
+        guestName,
       });
-    yield* redeem("redeem-1");
-    assert.isTrue(Exit.isFailure(yield* Effect.exit(redeem("redeem-2"))));
+    yield* redeem("redeem-1", "Sam");
+    yield* redeem("redeem-2", "Eve");
+    assert.equal((yield* projections.getThread(threadId)).guestShare?.guestName, "Sam");
 
     yield* orchestrator.dispatch({
       type: "thread.guest-message.submit",
@@ -149,6 +150,36 @@ it.effect("redeems a guest link once and sends each guest message once, with its
     // A second owner device clicking Send must not start another turn.
     assert.isTrue(Exit.isFailure(yield* Effect.exit(sendGuestMessage(orchestrator, "send-2"))));
     assert.lengthOf((yield* projections.getThreadProjection(threadId)).runs, 1);
+
+    yield* orchestrator.dispatch({
+      type: "thread.guest-message.submit",
+      commandId: CommandId.make("submit-eve"),
+      threadId,
+      shareId,
+      guestMessageId: GuestMessageId.make("guest-message:eve"),
+      guestName: "Eve",
+      text: "What about the new cache?",
+    });
+    yield* orchestrator.dispatch({
+      type: "message.dispatch",
+      commandId: CommandId.make("send-eve"),
+      threadId,
+      messageId: MessageId.make("send-eve"),
+      guestMessageId: GuestMessageId.make("guest-message:eve"),
+      text: "ignored",
+      attachments: [],
+      dispatchMode: { type: "defer_start" },
+      createdBy: "user",
+      creationSource: "web",
+    });
+    const eve = (yield* projections.getThreadProjection(threadId)).messages.find(
+      (message) => message.id === MessageId.make("send-eve"),
+    );
+    assert.equal(
+      eve?.text,
+      "Message from guest Eve, sent by the owner:\n\nWhat about the new cache?",
+    );
+    assert.equal(eve?.context?.guest?.name, "Eve");
   }).pipe(Effect.provide(layerTest)),
 );
 

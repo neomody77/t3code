@@ -3649,11 +3649,9 @@
   "0c7f0973f205c143": "Enlace de invitado",
   "d26395a743d1d094": "Copiar",
   "f1ad2149da98d87b": "Un enlace nuevo invalida el actual.",
-  "16e29e57dc2931ee": "El enlace funciona una vez y caduca en 24 horas.",
   "4b397764b5592274": "Creando...",
   "adb486dabb4bfe2c": "Crear enlace",
-  "841768cdf6a3e423": "{guestName} es un invitado",
-  "44edab03bdd834b0": "Enlace de invitado activo",
+  "44edab03bdd834b0": "Guest link active",
   "af2057b5701fe49e": "Invitado",
   "50ddfa242f74c4b1": "{count, plural, one {{count} mensaje de invitado en espera} other {{count} mensajes de invitado en espera}}",
   "ed5eb75060e6513f": "Descartar el mensaje de {guestName}",
@@ -5864,11 +5862,9 @@
   "04dfdd46e3dd4a2e": "Algo salió mal. Vuelve a intentarlo.",
   "084bb2d8127a508d": "Enviado",
   "77c01a15bd36d17c": "Este enlace terminó o no es válido",
-  "e0e736810f3cbef2": "Pide un enlace nuevo al propietario. Cada enlace funciona en un navegador.",
   "c3c53aa46f7330e5": "Este enlace terminó",
   "4a5ce89cc389c0cb": "El propietario dejó de compartir este hilo.",
   "72fcd24abd213e79": "Tu nombre",
-  "deba6c55f3fa2585": "Tú",
   "f3bf76280efcb4b3": "Modelo: {model}",
   "3ce15b040d294453": "Archivos adjuntos",
   "cf29899e4ec70df7": "Mensaje",
@@ -12791,5 +12787,7 @@
     ")"
   ],
   "33d18dda74f6d7b3": "Cancelar la fusión automática de la pila",
-  "012c67c7f1a99e33": "Fusión automática de la pila"
+  "012c67c7f1a99e33": "Fusión automática de la pila",
+  "4cd044d2cc1e71dd": "El enlace permite el acceso de varios invitados y caduca en 24 horas.",
+  "170024092befb7c0": "Pide un nuevo enlace al propietario."
 }

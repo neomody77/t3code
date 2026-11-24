@@ -127,7 +127,7 @@ export function appendGuestPendingMessages(
       type: "guest-pending",
       id: `guest-pending:${message.id}`,
       createdAt: message.submittedAt,
-      guestName,
+      guestName: message.guestName ?? guestName,
       message,
     })),
   ];

@@ -146,7 +146,7 @@ function GuestShareDialog({
             <p className="text-muted-foreground text-sm">
               {activeShare !== null
                 ? gt("A new link ends the current one.")
-                : gt("The link works once and expires in 24 hours.")}
+                : gt("The link can be used by multiple guests and expires in 24 hours.")}
             </p>
           )}
           {state.status === "failed" ? (
@@ -227,13 +227,7 @@ function GuestShareStatus({ share }: { readonly share: ThreadGuestShare }) {
       </span>
     );
   }
-  return (
-    <span>
-      {share.guestName !== null
-        ? gt("{guestName} is a guest", { guestName: share.guestName })
-        : gt("Guest link active")}
-    </span>
-  );
+  return <span>{gt("Guest link active")}</span>;
 }
 
 /**
@@ -270,7 +264,6 @@ export function GuestPendingMessages({
     }),
   );
   if (share === null || pending.length === 0) return null;
-  const guestName = share.guestName ?? gt("Guest");
   const openImage = (attachment: ChatAttachment) => {
     const preview = buildExpandedImagePreview(
       images.map((image) => ({ ...image, previewUrl: imageUrlById.get(image.id) ?? "" })),
@@ -303,6 +296,7 @@ export function GuestPendingMessages({
     >
       {pending.map((message) => {
         const busy = busyIds.has(message.id);
+        const guestName = message.guestName ?? share.guestName ?? gt("Guest");
         return (
           <li key={message.id} className="flex flex-col items-end gap-1">
             <GuestMessageName name={guestName} />

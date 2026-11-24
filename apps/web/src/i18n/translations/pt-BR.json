@@ -3649,11 +3649,9 @@
   "0c7f0973f205c143": "Link de convidado",
   "d26395a743d1d094": "Copiar",
   "f1ad2149da98d87b": "Um novo link encerra o atual.",
-  "16e29e57dc2931ee": "O link funciona uma vez e expira em 24 horas.",
   "4b397764b5592274": "Criando...",
   "adb486dabb4bfe2c": "Criar link",
-  "841768cdf6a3e423": "{guestName} é convidado",
-  "44edab03bdd834b0": "Link de convidado ativo",
+  "44edab03bdd834b0": "Guest link active",
   "af2057b5701fe49e": "Convidado",
   "50ddfa242f74c4b1": "{count, plural, one {{count} mensagem de convidado aguardando} other {{count} mensagens de convidado aguardando}}",
   "ed5eb75060e6513f": "Dispensar a mensagem de {guestName}",
@@ -5864,11 +5862,9 @@
   "04dfdd46e3dd4a2e": "Algo deu errado. Tente novamente.",
   "084bb2d8127a508d": "Enviada",
   "77c01a15bd36d17c": "Este link expirou ou não é válido",
-  "e0e736810f3cbef2": "Peça um novo link ao proprietário. Cada link funciona em um navegador.",
   "c3c53aa46f7330e5": "Este link expirou",
   "4a5ce89cc389c0cb": "O proprietário parou de compartilhar esta thread.",
   "72fcd24abd213e79": "Seu nome",
-  "deba6c55f3fa2585": "Você",
   "f3bf76280efcb4b3": "Modelo: {model}",
   "3ce15b040d294453": "Arquivos anexados",
   "cf29899e4ec70df7": "Mensagem",
@@ -12796,5 +12792,7 @@
     ")"
   ],
   "33d18dda74f6d7b3": "Cancelar merge automático da pilha",
-  "012c67c7f1a99e33": "Merge automático da pilha"
+  "012c67c7f1a99e33": "Merge automático da pilha",
+  "4cd044d2cc1e71dd": "O link pode ser usado por vários convidados e expira em 24 horas.",
+  "170024092befb7c0": "Peça um novo link ao proprietário."
 }

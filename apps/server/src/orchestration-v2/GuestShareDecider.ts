@@ -98,7 +98,7 @@ const resolveMessage = (
 
 /**
  * Applies a guest share command to the thread. The orchestrator runs commands one at a time, so
- * checking state here is what makes a link redeem once and a message send once.
+ * checking state here keeps each message sendable only once.
  */
 export function decideGuestShareCommand(input: {
   readonly thread: OrchestrationV2AppThread;
@@ -131,8 +131,7 @@ export function decideGuestShareCommand(input: {
       if (share === null || share.id !== command.shareId || isExpired(share, now)) {
         return Result.fail(GUEST_FAILURE.inactive);
       }
-      if (share.guestName !== null) return Result.fail(GUEST_FAILURE.used);
-      return withShare({ ...share, guestName: command.guestName });
+      return withShare({ ...share, guestName: share.guestName ?? command.guestName });
     }
     case "thread.guest-message.submit": {
       if (
@@ -163,6 +162,7 @@ export function decideGuestShareCommand(input: {
           ...share.messages,
           {
             id: command.guestMessageId,
+            guestName: command.guestName ?? share.guestName,
             text: command.text,
             status: "pending",
             submittedAt: DateTime.formatIso(now),
@@ -213,7 +213,7 @@ export function decideGuestMessageSend(input: {
   const share = input.thread.guestShare ?? null;
   if (share === null) return Result.fail("This thread has no guest link.");
   const message = share.messages.find((candidate) => candidate.id === input.guestMessageId);
-  const name = share.guestName ?? "Guest";
+  const name = message?.guestName ?? share.guestName ?? "Guest";
   const guestText = message?.text ?? "";
   return Result.map(resolveMessage(share, input.guestMessageId, "sent"), (next) => ({
     thread: { ...input.thread, guestShare: next, updatedAt: input.now },

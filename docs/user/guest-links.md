@@ -1,6 +1,6 @@
 # Guest links
 
-A guest link lets a teammate follow one thread in their browser and ask the agent questions, with no
+A guest link lets teammates follow one thread in their browsers and ask the agent questions, with no
 account. They see your messages and the agent's replies as they stream. Each message they send waits
 until you send or dismiss it.
 
@@ -15,13 +15,18 @@ expired work again when you turn it back on.
 
 1. Right-click the thread in the sidebar and choose **Share with guest**. It is also in the thread
    menu and the command palette. In the mobile app, long-press the thread in the list.
-2. Copy the link and send it to one person. It works in one browser and expires after 24 hours.
-   Opening it again in that browser takes them back to the thread.
+2. Copy the link and send it to your teammates. Each person enters their name in their browser;
+   everyone with the link can join until it expires, 24 hours after you created it.
+   Opening it again in the same browser takes them back to the thread.
 3. When they send a message, it appears at the end of the thread and the sidebar shows **Request**.
    Choose **Send** to run it as a normal turn, or **Dismiss**. Files they attached show with the
    message, and **Send** includes them.
 
-Choose **Stop sharing** to end the link at once. Archiving the thread, creating a new link, or
+Guests see the same thread, including each other's messages. Their names appear beside their
+messages, and each message still needs your approval. Up to three messages can wait across all
+guests at once. Names are self-chosen, so they do not verify a person's identity.
+
+Choose **Stop sharing** to end access for every guest at once. Archiving the thread, creating a new link, or
 unlinking the machine from T3 Connect (when using its address) also ends it. The mobile app can send, dismiss, and stop
 sharing too.
 
@@ -40,8 +45,8 @@ Use the address of the server that owns the thread. Your reverse proxy must forw
 the app's static assets, and `/api/guest/*` to that server, and allow streaming responses
 without buffering. Guests must be able to reach it without an additional proxy login.
 
-Guest links must still be enabled in Labs. Their expiry, one-browser redemption, and message
-approval rules are unchanged. Changing or removing the address makes links for the old host
+Guest links must still be enabled in Labs. Their expiry and message approval rules are unchanged.
+Changing or removing the address makes links for the old host
 inactive. Without this variable, guest links use T3 Connect as before.
 
 ## What the guest sees

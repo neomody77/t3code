@@ -125,7 +125,7 @@ it("stops treating a retained guest link as active when it expires", async () =>
 });
 
 it.each(["expired", "stopped", "replaced", "redeemed"] as const)(
-  "hides a created link after it is %s, while keeping it through projection catch-up",
+  "keeps a created link through catch-up and redemption, but hides it when %s",
   async (change) => {
     created.share = undefined;
     created.updatedAt = "1970-01-01T00:00:00.000Z";
@@ -176,9 +176,15 @@ it.each(["expired", "stopped", "replaced", "redeemed"] as const)(
         if (change === "stopped") created.share = null;
         await act(renderSheet);
       }
-      expect(container.textContent).not.toContain(url);
-      expect(container.textContent).not.toContain("Copy");
-      expect(container.textContent).not.toContain("Share");
+      if (change === "redeemed") {
+        expect(container.textContent).toContain(url);
+        expect(container.textContent).toContain("Copy");
+        expect(container.textContent).toContain("Share");
+      } else {
+        expect(container.textContent).not.toContain(url);
+        expect(container.textContent).not.toContain("Copy");
+        expect(container.textContent).not.toContain("Share");
+      }
     } finally {
       act(() => root.unmount());
       vi.useRealTimers();

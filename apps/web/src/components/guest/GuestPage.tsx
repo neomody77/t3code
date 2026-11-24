@@ -193,7 +193,7 @@ type GuestAccess = "checking" | "session" | "name" | "none";
 export function GuestPage() {
   const gt = useGT();
   const [{ credential, shareId }] = useState(takeGuestEntry);
-  // A browser that already joined this share goes straight back in, even from the spent link.
+  // A browser that already joined this share goes straight back in.
   // Sessions are per share, so one for another link never stands in for this one.
   const [access, setAccess] = useState<GuestAccess>(shareId === null ? "none" : "checking");
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- fetches whether this browser already has a guest session and ignores the answer after cleanup
@@ -234,7 +234,7 @@ export function GuestPage() {
         <NameForm
           credential={credential}
           onJoined={() => {
-            // The invite is spent; a remount must open the session, not the name form again.
+            // This browser has joined; a remount must open its session instead of the name form.
             capturedEntry = { credential: null, shareId };
             setAccess("session");
           }}
@@ -244,7 +244,7 @@ export function GuestPage() {
       ) : (
         <Notice
           title={gt("This link has ended or is not valid")}
-          detail={gt("Ask the owner for a new link. Each link works in one browser.")}
+          detail={gt("Ask the owner for a new link.")}
         />
       )}
     </div>
@@ -334,7 +334,7 @@ function GuestSession({ shareId }: { readonly shareId: string }) {
   return (
     <Notice
       title={gt("This link has ended or is not valid")}
-      detail={gt("Ask the owner for a new link. Each link works in one browser.")}
+      detail={gt("Ask the owner for a new link.")}
     />
   );
 }
@@ -400,9 +400,9 @@ function NameForm({
   );
 }
 
-/** The owner's timeline, read-only, with the guest's own messages and composer below it. */
+/** The owner's timeline, read-only, with guest messages and the composer below it. */
 function GuestThread({
-  view: { shareId, title, expiresAt, messages, model },
+  view: { shareId, title, expiresAt, messages, model, guestName },
   projection,
   awaitingRowIds,
   historyControls,
@@ -448,7 +448,11 @@ function GuestThread({
               <ol className="chat-content-lane flex flex-col gap-4 pb-4">
                 {unplaced.map((message) => (
                   <li key={message.id}>
-                    <UnplacedGuestMessage shareId={shareId} message={message} />
+                    <UnplacedGuestMessage
+                      shareId={shareId}
+                      message={message}
+                      guestName={message.guestName ?? guestName}
+                    />
                   </li>
                 ))}
               </ol>
@@ -491,18 +495,19 @@ const openExpandedImage = (preview: ExpandedImagePreview) => {
 function UnplacedGuestMessage({
   shareId,
   message,
+  guestName,
 }: {
   readonly shareId: GuestShareView["shareId"];
   readonly message: ThreadGuestMessage;
+  readonly guestName: string;
 }) {
   // A dismissed message's files are deleted, so only their names remain.
   const served = message.status !== "dismissed";
-  const gt = useGT();
   const m = useMessages();
   const url = (attachment: { readonly id: string }) => guestAttachmentUrl(shareId, attachment.id);
   return (
     <div className="flex flex-col items-end gap-1">
-      <GuestMessageName name={gt("You", { $context: "the guest's own messages" })} />
+      <GuestMessageName name={guestName} />
       <div
         className={cn(
           BUBBLE,
