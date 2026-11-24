@@ -141,26 +141,41 @@ const layerAnalytics = Layer.effectContext(
     );
   }),
 );
-const layerTest = GuestShareService.layer.pipe(
-  Layer.provideMerge(
-    CommandOutputHub.layer.pipe(
-      Layer.provideMerge(layerOrchestration.pipe(Layer.provide(layerCleanup))),
+const layerTestWithConfig = (config = layerConfig) =>
+  GuestShareService.layer.pipe(
+    Layer.provideMerge(
+      CommandOutputHub.layer.pipe(
+        Layer.provideMerge(layerOrchestration.pipe(Layer.provide(layerCleanup))),
+      ),
     ),
-  ),
-  Layer.provide(layerProviders),
-  Layer.provideMerge(ServerSettings.layerTest({ guestSharingEnabled: true })),
-  Layer.provide(layerConnect),
-  Layer.provideMerge(layerAnalytics),
-  Layer.provide(ServerSecretStore.layer),
-  Layer.provide(DocumentText.layer),
-  Layer.provideMerge(layerConfig),
-  Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+    Layer.provide(layerProviders),
+    Layer.provideMerge(ServerSettings.layerTest({ guestSharingEnabled: true })),
+    Layer.provide(layerConnect),
+    Layer.provideMerge(layerAnalytics),
+    Layer.provide(ServerSecretStore.layer),
+    Layer.provide(DocumentText.layer),
+    Layer.provideMerge(config),
+    Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+  );
+const layerTest = layerTestWithConfig();
+const layerSelfHosted = layerTestWithConfig(
+  Layer.effect(
+    ServerConfig.ServerConfig,
+    Effect.map(ServerConfig.ServerConfig, (config) => ({
+      ...config,
+      guestPublicUrl: "https://self-hosted.test:8443",
+    })),
+  ).pipe(Layer.provide(layerConfig)),
 );
 
 const threadId = ThreadId.make("thread:guest-share-service");
 
-const shareThreadFor = Effect.fn(function* (threadId: ThreadId) {
-  yield* Ref.set(hostname, "env.t3.test");
+const shareThreadFor = Effect.fn(function* (
+  threadId: ThreadId,
+  expectedHost = "env.t3.test",
+  connectHost: string | null = "env.t3.test",
+) {
+  yield* Ref.set(hostname, connectHost);
   const orchestrator = yield* Orchestrator.OrchestratorV2;
   yield* orchestrator.dispatch({
     type: "thread.create",
@@ -178,11 +193,93 @@ const shareThreadFor = Effect.fn(function* (threadId: ThreadId) {
   });
   const guestShares = yield* GuestShareService.GuestShareService;
   const { url } = yield* guestShares.create({ threadId });
-  assert.isTrue(url.startsWith("https://env.t3.test/guest#"));
+  assert.isTrue(url.startsWith(`https://${expectedHost}/guest#`));
   const credential = url.slice(url.indexOf("#") + 1);
   return { orchestrator, guestShares, credential };
 });
 const shareThread = shareThreadFor(threadId);
+
+it.effect(
+  "shares through a configured HTTPS host without Connect and retains guest restrictions",
+  () =>
+    Effect.gen(function* () {
+      const { orchestrator, guestShares, credential } = yield* shareThreadFor(
+        threadId,
+        "self-hosted.test:8443",
+        null,
+      );
+      const { token: session, shareId } = yield* guestShares.redeem({ credential, name: "Sam" });
+      assert.isTrue(
+        Exit.isFailure(yield* Effect.exit(guestShares.redeem({ credential, name: "Eve" }))),
+      );
+      yield* guestShares.submit(session, { shareId, text: "Please review" }, []);
+      const thread = (yield* orchestrator.getThreadRecords(threadId, [])).thread;
+      assert.equal(thread.guestShare?.host, "self-hosted.test:8443");
+      assert.equal(thread.guestShare?.messages[0]?.status, "pending");
+
+      const collecting = yield* Stream.runCollect(yield* guestShares.stream(session)).pipe(
+        Effect.forkChild,
+      );
+      // Connect state must not revoke a share using the separately configured endpoint.
+      yield* Ref.set(hostname, "different.t3.test");
+      yield* TestClock.adjust("31 seconds");
+      assert.isUndefined(collecting.pollUnsafe());
+      yield* guestShares.check(session);
+      const settings = yield* ServerSettings.ServerSettingsService;
+      yield* settings.updateSettings({ guestSharingEnabled: false });
+      assert.equal((yield* Effect.flip(guestShares.check(session))).reason, "inactive");
+      yield* settings.updateSettings({ guestSharingEnabled: true });
+      yield* orchestrator.dispatch({
+        type: "thread.guest-share.close",
+        commandId: CommandId.make("close-self-hosted-share"),
+        threadId,
+      });
+      const received = Array.from(yield* Fiber.join(collecting));
+      assert.equal(received.at(-1)?.type, "ended");
+      assert.equal((yield* Effect.flip(guestShares.check(session))).reason, "inactive");
+    }).pipe(Effect.provide(layerSelfHosted)),
+);
+
+it.effect("refuses a signed invite bound to a different public host", () =>
+  Effect.gen(function* () {
+    const { orchestrator, guestShares, credential } = yield* shareThreadFor(
+      threadId,
+      "self-hosted.test:8443",
+      null,
+    );
+    const share = (yield* orchestrator.getThreadRecords(threadId, [])).thread.guestShare!;
+    yield* orchestrator.dispatch({
+      type: "thread.guest-share.open",
+      commandId: CommandId.make("different-public-host"),
+      threadId,
+      shareId: share.id,
+      host: "old-public-host.test",
+      expiresAt: share.expiresAt,
+    });
+    assert.equal(
+      (yield* Effect.flip(guestShares.redeem({ credential, name: "Sam" }))).reason,
+      "inactive",
+    );
+  }).pipe(Effect.provide(layerSelfHosted)),
+);
+
+it.effect("expires self-hosted guest streams without a Connect tunnel", () =>
+  Effect.gen(function* () {
+    const { guestShares, credential } = yield* shareThreadFor(
+      threadId,
+      "self-hosted.test:8443",
+      null,
+    );
+    const { token: session } = yield* guestShares.redeem({ credential, name: "Sam" });
+    const collecting = yield* Stream.runCollect(yield* guestShares.stream(session)).pipe(
+      Effect.forkChild,
+    );
+    yield* TestClock.adjust("25 hours");
+    const received = Array.from(yield* Fiber.join(collecting));
+    assert.equal(received.at(-1)?.type, "ended");
+    assert.equal((yield* Effect.flip(guestShares.check(session))).reason, "inactive");
+  }).pipe(Effect.provide(layerSelfHosted)),
+);
 
 it.effect("spends an invite once and ends the guest stream when the owner stops sharing", () =>
   Effect.gen(function* () {

@@ -88,6 +88,8 @@ export class ServerConfig extends Context.Service<
     readonly mode: RuntimeMode;
     readonly port: number;
     readonly host: string | undefined;
+    /** Administrator-configured HTTPS origin for guest links, instead of T3 Connect. */
+    readonly guestPublicUrl?: string | undefined;
     /** Set when the host was defaulted to a private-network listener for the service. */
     readonly privateNetworkOnly?: boolean | undefined;
     readonly cwd: string;

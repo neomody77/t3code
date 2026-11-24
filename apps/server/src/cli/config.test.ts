@@ -106,6 +106,42 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
     devAllowedOrigins: [],
   } as const;
 
+  it.effect("accepts only HTTPS origins for the self-hosted guest endpoint", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-guest-origin-" });
+      for (const [value, expected] of [
+        ["https://t3.example.com", "https://t3.example.com"],
+        ["https://T3.example.com:8443/", "https://t3.example.com:8443"],
+        ["http://t3.example.com", null],
+        ["https://user@t3.example.com", null],
+        ["https://t3.example.com/nested", null],
+        ["https://t3.example.com/?redirect=elsewhere", null],
+        ["https://t3.example.com/#invite", null],
+        ["not-a-url", null],
+        ["", undefined],
+      ] as const) {
+        const result = yield* resolveServerConfig(minimalDesktopFlags(baseDir), Option.none()).pipe(
+          Effect.provide(
+            Layer.merge(
+              NetService.layer,
+              ConfigProvider.layer(
+                ConfigProvider.fromEnv({ env: { T3CODE_GUEST_PUBLIC_URL: value } }),
+              ),
+            ),
+          ),
+          Effect.result,
+        );
+        if (expected === null) {
+          expect(Result.isFailure(result), value).toBe(true);
+        } else {
+          assert(Result.isSuccess(result));
+          assert.equal(result.success.guestPublicUrl, expected);
+        }
+      }
+    }),
+  );
+
   const openBootstrapFd = Effect.fn(function* (payload: DesktopBackendBootstrapValue) {
     const fs = yield* FileSystem.FileSystem;
     const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });

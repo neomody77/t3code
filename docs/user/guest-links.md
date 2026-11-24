@@ -7,8 +7,9 @@ until you send or dismiss it.
 ## Share a thread
 
 Guest links are a beta. Turn on **Settings → Labs → Guest links** for the machine that runs the
-thread. They also need [T3 Connect](./remote-access.md): sign in and link that machine, because the
-link points at its T3 Connect address. The machine must stay online while the guest uses it.
+thread. By default they use [T3 Connect](./remote-access.md): sign in and link that machine.
+Self-hosted servers can use their own HTTPS address instead, as described below.
+The machine must stay online while the guest uses it.
 While the setting is off, every guest link on that machine stops working; links that have not
 expired work again when you turn it back on.
 
@@ -21,8 +22,27 @@ expired work again when you turn it back on.
    message, and **Send** includes them.
 
 Choose **Stop sharing** to end the link at once. Archiving the thread, creating a new link, or
-unlinking the machine from T3 Connect also ends it. The mobile app can send, dismiss, and stop
+unlinking the machine from T3 Connect (when using its address) also ends it. The mobile app can send, dismiss, and stop
 sharing too.
+
+## Self-hosted address
+
+If your server already has a public HTTPS address, set `T3CODE_GUEST_PUBLIC_URL` in the server
+process environment and restart it:
+
+```sh
+T3CODE_GUEST_PUBLIC_URL=https://t3.example.com t3 serve
+```
+
+For a background service, add the variable to its `service.env` and restart the service.
+The address must be an HTTPS origin, with no credentials, subpath, query, or fragment.
+Use the address of the server that owns the thread. Your reverse proxy must forward `/guest`,
+the app's static assets, and `/api/guest/*` to that server, and allow streaming responses
+without buffering. Guests must be able to reach it without an additional proxy login.
+
+Guest links must still be enabled in Labs. Their expiry, one-browser redemption, and message
+approval rules are unchanged. Changing or removing the address makes links for the old host
+inactive. Without this variable, guest links use T3 Connect as before.
 
 ## What the guest sees
 
