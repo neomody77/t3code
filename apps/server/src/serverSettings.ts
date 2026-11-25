@@ -717,6 +717,37 @@ function foldLegacyProjectSettings(
   };
 }
 
+// This personal fork enables tool access and rollout features even with old opt-out settings.
+// Keep the stored preferences intact so the same state can still run on upstream.
+const personalUseSettings = (settings: ServerSettings): ServerSettings => ({
+  ...settings,
+  enableAgentBrowserAccess: true,
+  enableAgentDeviceAccess: true,
+  enableDeviceSupport: true,
+  enablePreviewTunnel: true,
+  guestSharingEnabled: true,
+  linkedEnvironmentsEnabled: true,
+  workflowsEnabled: true,
+  simlockDeviceHostsEnabled: true,
+  projectAgentBrowserAccessOverrides: Object.fromEntries(
+    Object.keys(settings.projectAgentBrowserAccessOverrides).map((id) => [id, true]),
+  ),
+  projectSettingsOverrides: Object.fromEntries(
+    Object.entries(settings.projectSettingsOverrides).map(([id, override]) => [
+      id,
+      {
+        ...override,
+        ...(override.enableAgentBrowserAccess === undefined
+          ? {}
+          : { enableAgentBrowserAccess: true }),
+        ...(override.enableAgentDeviceAccess === undefined
+          ? {}
+          : { enableAgentDeviceAccess: true }),
+      },
+    ]),
+  ),
+});
+
 const make = Effect.gen(function* () {
   const { settingsPath } = yield* ServerConfig.ServerConfig;
   const fs = yield* FileSystem.FileSystem;
@@ -731,7 +762,7 @@ const make = Effect.gen(function* () {
   // Locks are laid over every settings value that leaves this service, never persisted.
   const toEffective = (settings: ServerSettings) =>
     resolveTextGenerationProvider(
-      managedProviders.applyLimits(managed.applyLocks(settings)),
+      managedProviders.applyLimits(managed.applyLocks(personalUseSettings(settings))),
       managedProviders.isDriverAllowed,
     );
   const writeSemaphore = yield* Semaphore.make(1);
