@@ -19,6 +19,7 @@ import {
   type SimlockDeviceHostConfig,
 } from "@t3tools/contracts";
 import { createModelSelection } from "@t3tools/shared/model";
+import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { assert, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -221,6 +222,70 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       }),
     ).pipe(Effect.provide(layerServerSettings())),
   );
+  it.effect.each([false, true])(
+    "enables personal-use features with existing settings: %s",
+    (saved) =>
+      Effect.gen(function* () {
+        const config = yield* ServerConfig.ServerConfig;
+        const fs = yield* FileSystem.FileSystem;
+        const service = yield* ServerSettingsModule.ServerSettingsService;
+        const projectId = ProjectId.make("personal-use-project");
+        const disabled = {
+          enableAgentBrowserAccess: false,
+          enableAgentDeviceAccess: false,
+          enableDeviceSupport: false,
+          enablePreviewTunnel: false,
+          guestSharingEnabled: false,
+          linkedEnvironmentsEnabled: false,
+          workflowsEnabled: false,
+          simlockDeviceHostsEnabled: false,
+        };
+        const stored = saved
+          ? {
+              ...disabled,
+              defaultAutoPull: true,
+              projectSettingsOverrides: {
+                [projectId]: {
+                  enableAgentBrowserAccess: false,
+                  enableAgentDeviceAccess: false,
+                  defaultAutoPull: false,
+                },
+              },
+            }
+          : {};
+        yield* fs.writeFileString(config.settingsPath, JSON.stringify(stored));
+
+        const settings = yield* service.getSettings;
+        for (const key of Object.keys(disabled) as Array<keyof typeof disabled>) {
+          assert.isTrue(settings[key], key);
+        }
+        const effective = resolveProjectSettings(settings, projectId).settings;
+        assert.isTrue(effective.enableAgentBrowserAccess);
+        assert.isTrue(effective.enableAgentDeviceAccess);
+        assert.isFalse(effective.defaultAutoPull);
+
+        const updated = yield* service.updateSettings({
+          ...disabled,
+          projectSettingsOverrides: {
+            [projectId]: {
+              enableAgentBrowserAccess: false,
+              enableAgentDeviceAccess: false,
+            },
+          },
+        });
+        for (const key of Object.keys(disabled) as Array<keyof typeof disabled>) {
+          assert.isTrue(updated[key], key);
+        }
+        const snapshot = yield* service.withSettingsSnapshot(Effect.succeed);
+        assert.isTrue(resolveProjectSettings(snapshot, projectId).settings.enableAgentDeviceAccess);
+        const persisted = yield* decodeServerSettingsJson(
+          yield* fs.readFileString(config.settingsPath),
+        );
+        assert.isFalse(persisted.enableAgentDeviceAccess);
+        assert.isFalse(persisted.projectSettingsOverrides[projectId]?.enableAgentDeviceAccess);
+      }).pipe(Effect.provide(layerServerSettings())),
+  );
+
   it.effect("migrates saved token delivery to paragraph buffering without resetting settings", () =>
     Effect.gen(function* () {
       const config = yield* ServerConfig.ServerConfig;
@@ -241,7 +306,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
 
       const settings = yield* service.getSettings;
       assert.equal(settings.responseStreamingMode, "paragraph");
-      assert.isFalse(settings.enableAgentBrowserAccess);
+      assert.isTrue(settings.enableAgentBrowserAccess);
       assert.deepEqual(settings.projectSettingsOverrides, {
         [ProjectId.make("legacy")]: { responseStreamingMode: "paragraph", defaultAutoPull: true },
         [ProjectId.make("buffered")]: { responseStreamingMode: "turn" },
@@ -2371,7 +2436,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
         settings.projectSettingsOverrides,
         {
           [legacyProject]: {
-            enableAgentBrowserAccess: false,
+            enableAgentBrowserAccess: true,
             defaultModelSelection: model,
             defaultThreadEnvMode: "worktree",
             defaultAutoPull: true,
@@ -2426,8 +2491,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       assert.isFalse(settings.continueThreadsAfterServerUpdate);
       assert.equal(settings.usageHistoryRetentionDays, "unlimited");
       assert.isTrue(settings.requireConnectDeviceApproval);
-      assert.isFalse(settings.enablePreviewTunnel);
-      assert.isFalse(settings.enableAgentBrowserAccess);
+      assert.isTrue(settings.enablePreviewTunnel);
+      assert.isTrue(settings.enableAgentBrowserAccess);
       assert.equal(settings.defaultRuntimeMode, "approval-required");
       assert.deepEqual(settings.projectSettingsOverrides, {});
 
