@@ -35,8 +35,14 @@ import { useNowMinute } from "~/hooks/useNowMinute";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useTheme } from "~/hooks/useTheme";
 import { cn } from "~/lib/utils";
+import { isImageAttachment } from "~/types";
 import { ComposerControl, ComposerControlIcon } from "../chat/ComposerControl";
-import type { ExpandedImagePreview } from "../chat/ExpandedImagePreview";
+import { ExpandedImageDialog } from "../chat/ExpandedImageDialog";
+import {
+  buildExpandedImagePreview,
+  expandedImageKey,
+  type ExpandedImagePreview,
+} from "../chat/ExpandedImagePreview";
 import { GuestMessageAttachments } from "../chat/GuestMessageAttachments";
 import { HostImageUrlContext } from "../chat/hostImageUrl";
 import { PierreEntryIcon } from "../chat/PierreEntryIcon";
@@ -416,6 +422,7 @@ function GuestThread({
   readonly awaitingRowIds: GuestStreamState["awaitingRowIds"];
   readonly historyControls: MessagesTimelineHistoryControls | undefined;
 }) {
+  const [imagePreview, setImagePreview] = useState<ExpandedImagePreview | null>(null);
   // Files load through the guest route.
   const [attachmentUrls] = useState(() => createGuestAttachmentUrls(shareId));
   // Expanded rows read detail and command output through the guest routes.
@@ -443,7 +450,7 @@ function GuestThread({
           historyControls={historyControls}
           turnItemSource={turnItemSource}
           attachmentUrls={attachmentUrls}
-          onImageExpand={openExpandedImage}
+          onImageExpand={setImagePreview}
           onFileOpen={openFile}
           renderHtmlRender={renderHtmlRender}
           renderFooter={(items) => {
@@ -456,6 +463,7 @@ function GuestThread({
                       shareId={shareId}
                       message={message}
                       guestName={message.guestName ?? guestName}
+                      onImageExpand={setImagePreview}
                     />
                   </li>
                 ))}
@@ -470,6 +478,13 @@ function GuestThread({
           )}
         </ReadOnlyThreadTimeline>
       </HostImageUrlContext>
+      {imagePreview !== null ? (
+        <ExpandedImageDialog
+          key={expandedImageKey(imagePreview)}
+          preview={imagePreview}
+          onClose={() => setImagePreview(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -489,21 +504,18 @@ const BUBBLE =
   "flex min-w-0 max-w-[80%] flex-col gap-2 rounded-2xl p-3 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]";
 
 const openInNewTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
-/** Guests have no image viewer; the browser shows the picture in its own tab. */
-const openExpandedImage = (preview: ExpandedImagePreview) => {
-  const src = preview.images[preview.index]?.src;
-  if (src) openInNewTab(src);
-};
 
 /** A guest message the owner has not sent yet, or chose not to send. */
 function UnplacedGuestMessage({
   shareId,
   message,
   guestName,
+  onImageExpand,
 }: {
   readonly shareId: GuestShareView["shareId"];
   readonly message: ThreadGuestMessage;
   readonly guestName: string;
+  readonly onImageExpand: (preview: ExpandedImagePreview) => void;
 }) {
   // A dismissed message's files are deleted, so only their names remain.
   const served = message.status !== "dismissed";
@@ -523,7 +535,15 @@ function UnplacedGuestMessage({
         <GuestMessageAttachments
           attachments={message.attachments ?? []}
           imageUrl={(attachment) => (served ? url(attachment) : undefined)}
-          onOpenImage={(attachment) => openInNewTab(url(attachment))}
+          onOpenImage={(attachment) => {
+            const preview = buildExpandedImagePreview(
+              (message.attachments ?? [])
+                .filter(isImageAttachment)
+                .map((image) => ({ ...image, previewUrl: url(image) })),
+              attachment.id,
+            );
+            if (preview) onImageExpand(preview);
+          }}
           {...(served ? { fileHref: url } : {})}
         />
         {message.text ? <span>{message.text}</span> : null}

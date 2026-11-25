@@ -1,4 +1,5 @@
 import {
+  ChatAttachmentId,
   EventId,
   GUEST_COMMAND_OUTPUT_ROUTE,
   GUEST_RENDER_ROUTE,
@@ -16,7 +17,7 @@ import {
 import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import "~/index.css";
 
@@ -299,6 +300,69 @@ describe("GuestPage", () => {
     expect((form.get("file") as File).name).toBe("notes.txt");
     // Sent files leave the composer.
     await expect.element(screen.getByText("notes.txt")).not.toBeInTheDocument();
+  });
+
+  it("previews pending attachments and timeline images in a modal without leaving the guest page", async () => {
+    using _page = visit(`/guest?share=${SHARE_ID}`);
+    using _session = vi
+      .spyOn(window, "fetch")
+      .mockImplementation(async () => new Response(null, { status: 204 }));
+    const images = ["first.png", "second.png"].map((name) => ({
+      type: "image" as const,
+      id: ChatAttachmentId.make(name.replace(".png", "")),
+      name,
+      mimeType: "image/png",
+      sizeBytes: 64,
+    }));
+    const events = opening(
+      [run("run-1", 1, "completed")],
+      [items[0]!, reply("images", 1, `![Diagram](${window.location.origin}/favicon-32x32.png)`)],
+    );
+    using _stream = vi.spyOn(window, "EventSource").mockImplementation(
+      fakeEventSource([
+        {
+          type: "view",
+          view: {
+            ...view,
+            messages: [
+              {
+                id: GuestMessageId.make("pending-images"),
+                guestName: "Sam",
+                text: "Check these images",
+                status: "pending",
+                submittedAt: DateTime.formatIso(finished),
+                attachments: images,
+              },
+            ],
+          },
+        },
+        ...events.slice(1),
+      ]) as never,
+    );
+    using open = vi.spyOn(window, "open").mockReturnValue(null);
+    using socket = vi.spyOn(window, "WebSocket");
+    await using screen = await render(<GuestPage />);
+
+    const opener = screen.getByRole("button", { name: "Preview first.png" });
+    await userEvent.click(opener);
+    expect(open).not.toHaveBeenCalled();
+    const dialog = page.getByRole("dialog", { name: "Expanded image preview" });
+    await expect.element(dialog).toBeVisible();
+    await expect.element(dialog.getByText("first.png (1/2)", { exact: true })).toBeVisible();
+    await userEvent.click(dialog.getByRole("button", { name: "Next media" }));
+    await expect.element(dialog.getByText("second.png (2/2)", { exact: true })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(dialog).not.toBeInTheDocument();
+    await expect.element(opener).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: "Preview Diagram" }));
+    await expect.element(dialog).toBeVisible();
+    await expect.element(dialog.getByText("Diagram", { exact: true })).toBeVisible();
+    await userEvent.click(dialog.getByRole("button", { name: "Back, close image preview" }));
+    await expect.element(dialog).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/guest");
+    expect(open).not.toHaveBeenCalled();
+    expect(socket).not.toHaveBeenCalled();
   });
 
   it("follows the end as replies stream, and shows the guest's own message even after they scrolled up", async () => {
